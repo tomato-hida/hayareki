@@ -41,6 +41,7 @@
 
   .item { display: grid; grid-template-columns: 1fr 104px auto; gap: 6px; align-items: center; margin-bottom: 6px; }
   .item .u { font-size: 15px; color: var(--sub); min-width: 26px; }
+  .item select.unit { width: 64px; padding: 6px 4px; font-size: 17px; color: var(--ink); }
   .item.noqty { grid-template-columns: 1fr; }
   .ratio { font-size: 15px; margin: -2px 0 8px; min-height: 1.2em; }
   .ratio.ng { color: var(--warn); background: var(--warnbg); padding: 4px 8px; border-radius: 6px; font-weight: 700; }
@@ -102,6 +103,11 @@
     <input type="number" id="water" inputmode="decimal" min="0" step="any">
   </div>
 
+  <div class="field" id="irr-f">
+    <label for="irr">潅水時間（分）</label>
+    <input type="number" id="irr" inputmode="numeric" min="0" step="any">
+  </div>
+
   <div class="field" id="truss-f" hidden>
     <div class="row2">
       <div><label for="flower">開花段</label><input type="number" id="flower" inputmode="numeric" min="0"></div>
@@ -152,10 +158,20 @@ function itemRow() {
     div.className = 'item';
     div.innerHTML = `<select aria-label="${c === '施肥' ? '資材' : '薬剤'}">${options(list, k)}</select>
       <input type="number" inputmode="decimal" min="0" step="any" aria-label="使用量" placeholder="量">
-      <span class="u">${c === '施肥' ? 'kg' : ''}</span>`;
+      ${c === '施肥'
+        ? '<select class="u unit" aria-label="単位"><option>kg</option><option>ℓ</option></select>'
+        : '<span class="u"></span>'}`;
   }
   const wrap = document.createElement('div');
   wrap.appendChild(div);
+  if (c === '施肥') {
+    const sel = div.querySelector('select'), q = div.querySelector('input'), u = div.querySelector('.unit');
+    sel.addEventListener('change', () => {
+      const water = sel.value === '水のみ';
+      q.disabled = u.disabled = water; if (water) q.value = '';
+      q.placeholder = water ? '量なし' : '量';
+    });
+  }
   if (c === '防除') {
     const r = document.createElement('div'); r.className = 'ratio'; wrap.appendChild(r);
     div.querySelector('select').addEventListener('change', e => {
@@ -176,6 +192,7 @@ function renderItems() {
   $('#add-item').hidden = c !== '防除';
   $('#water-f').hidden = c !== '防除';
   $('#truss-f').hidden = c !== '作業';
+  $('#irr-f').hidden = c !== '施肥';
 }
 
 function checkRatio() {
@@ -235,7 +252,9 @@ function collect() {
     const name = d.querySelector('select').value;
     if (!name) return;
     const qty = d.querySelector('input') ? d.querySelector('input').value : '';
-    const unit = state.cat === '施肥' ? 'kg' : (d.querySelector('.u')?.textContent || '');
+    const unit = state.cat === '施肥'
+      ? (name === '水のみ' ? '' : d.querySelector('.unit').value)
+      : (d.querySelector('.u')?.textContent || '');
     items.push({ name, qty, unit });
   });
   return {
@@ -243,6 +262,7 @@ function collect() {
     water: state.cat === '防除' ? $('#water').value : '',
     flower: state.cat === '作業' ? $('#flower').value : '',
     harvest: state.cat === '作業' ? $('#harvest').value : '',
+    irrigation: state.cat === '施肥' ? $('#irr').value : '',
     note: $('#note').value.trim(),
   };
 }
@@ -251,13 +271,14 @@ function save() {
   const p = collect();
   if (!p.plots.length) return toast('区画を選んでください', true);
   if (!p.items.length) return toast(state.cat === '作業' ? '作業を選んでください' : '資材を選んでください', true);
-  if (state.cat !== '作業' && p.items.some(i => !(parseFloat(i.qty) > 0))) return toast('量を入れてください', true);
+  if (state.cat !== '作業' && p.items.some(i => i.name !== '水のみ' && !(parseFloat(i.qty) > 0))) return toast('量を入れてください', true);
+  if (p.items.some(i => i.name === '水のみ') && !(parseFloat(p.irrigation) > 0)) return toast('潅水時間を入れてください', true);
   if (state.cat === '防除' && !(parseFloat(p.water) > 0)) return toast('水量を入れてください', true);
   const btn = $('#save'); btn.disabled = true; btn.textContent = '保存しています';
   google.script.run.withSuccessHandler(res => {
     btn.disabled = false; btn.textContent = '保存する';
     toast(`保存しました（${res.saved}行）`);
-    renderItems(); $('#water').value = ''; $('#note').value = ''; $('#flower').value = ''; $('#harvest').value = '';
+    renderItems(); $('#water').value = ''; $('#note').value = ''; $('#flower').value = ''; $('#harvest').value = ''; $('#irr').value = '';
     renderRecent(res.recent);
   }).withFailureHandler(e => {
     btn.disabled = false; btn.textContent = '保存する'; toast(e.message, true);

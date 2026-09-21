@@ -10,9 +10,9 @@
 const SHEET = { rec: '記録', plots: '区画', ferts: '肥料', pests: '農薬', works: '作業' };
 
 const HEAD = {
-  rec:   ['id', 'event_id', '登録日時', '日付', '区画', '分類', '項目', '使用量', '単位', '水量L', '開花段', '収穫段', 'メモ'],
+  rec:   ['id', 'event_id', '登録日時', '日付', '区画', '分類', '項目', '使用量', '単位', '水量L', '開花段', '収穫段', 'メモ', '潅水分'],
   plots: ['区画名', '面積a', 'ハウス数'],
-  ferts: ['資材名', '全N%', '化学N%', 'リン酸%', 'カリ%'],
+  ferts: ['資材名', '全N%', '化学N%', 'リン酸%', 'カリ%', '比重'],
   pests: ['薬剤名', '分類', '使用回数上限', 'カウント', '計算方法', '最小倍率', '最大倍率', '単位'],
   works: ['作業名'],
 };
@@ -20,7 +20,7 @@ const HEAD = {
 // 初回のみの見本。setup 後に自分の内容へ書き換える
 const SAMPLE = {
   plots: [['第1', 6, 3], ['第2', 6, 3], ['第3', 4, 2]],
-  ferts: [['液肥A', 10, 9.7, 4, 6], ['カリ資材B', 5, 5, 0, 49]],
+  ferts: [['液肥A', 10, 9.7, 4, 6, 1.33], ['カリ資材B', 5, 5, 0, 49, ''], ['水のみ', 0, 0, 0, 0, '']],
   pests: [['殺菌剤A', '殺菌剤', 3, 1, '希釈', 2000, '', 'ml'],
           ['展着剤C', '展着剤', 0, 0, '希釈', 2000, '', 'ml'],
           ['粒剤D', '殺虫剤', 1, 1, '直', '', '', 'g']],
@@ -68,7 +68,7 @@ function getMasters() {
 /**
  * p = { date:'2026-09-16', category:'防除', plots:['第1','第2'],
  *       items:[{name:'殺菌剤A', qty:250, unit:'ml'}], water:500,
- *       flower:'', harvest:'', note:'' }
+ *       flower:'', harvest:'', irrigation:'', note:'' }
  * 区画×項目ごとに1行ずつ保存する。同じ保存操作の行は event_id でつながる。
  */
 function saveRecord(p) {
@@ -79,6 +79,7 @@ function saveRecord(p) {
   lock.waitLock(10000);
   try {
     const sh = SpreadsheetApp.getActive().getSheetByName(SHEET.rec);
+    ensureHeader_(sh);
     const ev = Utilities.getUuid().slice(0, 8);
     const now = new Date();
     const day = new Date(p.date + 'T00:00:00');
@@ -86,12 +87,20 @@ function saveRecord(p) {
     const rows = [];
     p.items.forEach(it => p.plots.forEach(plot => rows.push([
       Utilities.getUuid().slice(0, 8), ev, now, day, plot, p.category, it.name,
-      n(it.qty), it.unit || '', n(p.water), n(p.flower), n(p.harvest), p.note || '',
+      n(it.qty), it.unit || '', n(p.water), n(p.flower), n(p.harvest), p.note || '', n(p.irrigation),
     ])));
     sh.getRange(sh.getLastRow() + 1, 1, rows.length, HEAD.rec.length).setValues(rows);
     return { saved: rows.length, recent: recent_(8) };
   } finally {
     lock.releaseLock();
+  }
+}
+
+/** 列が増えたときに、既存の「記録」シートの見出しを追加する */
+function ensureHeader_(sh) {
+  const w = HEAD.rec.length;
+  if (sh.getLastColumn() < w || sh.getRange(1, w).getValue() !== HEAD.rec[w - 1]) {
+    sh.getRange(1, 1, 1, w).setValues([HEAD.rec]).setFontWeight('bold');
   }
 }
 

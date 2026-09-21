@@ -117,7 +117,8 @@ def load_hayareki(tables):
     for r in ferts or []:
         M["ferts"][key(r["資材名"])] = {
             "n": num(r.get("全N%"), 0), "cn": num(r.get("化学N%"), 0),
-            "p": num(r.get("リン酸%"), 0), "k": num(r.get("カリ%"), 0)}
+            "p": num(r.get("リン酸%"), 0), "k": num(r.get("カリ%"), 0),
+            "sg": num(r.get("比重"), 1) or 1}
     for r in pests or []:
         M["pests"][key(r["薬剤名"])] = {
             "cls": r.get("分類") or "", "max": num(r.get("使用回数上限"), 0),
@@ -131,7 +132,8 @@ def load_hayareki(tables):
         R.append({"event": str(r.get("event_id")), "date": d, "plot": key(r.get("区画")),
                   "cat": r.get("分類"), "item": key(r.get("項目")), "qty": num(r.get("使用量")),
                   "unit": r.get("単位") or "", "water": num(r.get("水量L")),
-                  "flower": num(r.get("開花段")), "harvest": num(r.get("収穫段")), "note": r.get("メモ") or ""})
+                  "flower": num(r.get("開花段")), "harvest": num(r.get("収穫段")), "note": r.get("メモ") or "",
+                  "irrigation": num(r.get("潅水分"))})
     return R, M
 
 
@@ -224,8 +226,17 @@ def fert_ratio(plot, M, cfg):
     return (h / basis) if (basis and h) else 1.0
 
 
-def kg(qty, unit):
-    return (qty or 0) * (0.001 if key(unit) in ("g", "ml") else 1)
+def kg(qty, unit, sg=1.0):
+    """使用量をkgに直す。ℓ・mlは比重（1ℓあたりのkg）を掛ける"""
+    u = key(unit).lower()          # NFKC で「ℓ」は「l」になる
+    q = qty or 0
+    if u == "g":
+        return q * 0.001
+    if u == "ml":
+        return q * 0.001 * sg
+    if u in ("l", "リットル"):
+        return q * sg
+    return q
 
 
 def pest_events(R):
@@ -285,7 +296,7 @@ def check(R, M, cfg):
         if not f:
             warn.append(f'肥料マスターにない資材: {r["item"]}')
             continue
-        q = kg(r["qty"], r["unit"]) * fert_ratio(r["plot"], M, cfg)
+        q = kg(r["qty"], r["unit"], f.get("sg", 1)) * fert_ratio(r["plot"], M, cfg)
         n_plot[r["plot"]] += q * f["cn"] / 100
         mm = nk[(r["plot"], r["date"].month)]
         mm[0] += q * f["cn"] / 100
@@ -378,8 +389,9 @@ def export(R, M, cfg, template, out):
     agg = defaultdict(float)
     for r in R:
         if r["cat"] == "施肥" and r["plot"] in fcols:
+            sg = M["ferts"].get(r["item"], {}).get("sg", 1)
             agg[(r["date"].month, ja_name(r["item"], cfg, lm, log), r["plot"])] += \
-                kg(r["qty"], r["unit"]) * fert_ratio(r["plot"], M, cfg)
+                kg(r["qty"], r["unit"], sg) * fert_ratio(r["plot"], M, cfg)
     tr = F["formula_template_row"]
     for mon in sorted({k[0] for k in agg}):
         blk = F["month_blocks"].get(str(mon))
