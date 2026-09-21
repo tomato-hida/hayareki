@@ -1,0 +1,49 @@
+{
+  "_説明": "区画名・通称・様式の列位置を自分の畑に合わせて書き換える。config.json という名前で保存して使う。",
+
+  "plots_alias": {
+    "東側": ["第1", "第2", "第3"],
+    "西側": ["第4", "第5"]
+  },
+
+  "fertilizer_apportion": {
+    "_説明": "複数区画に同じ量で入力し、小さい区画には実際は少なく撒いている場合の按分。basis_houses 棟の区画を基準に、ハウス数に比例させる。使わないなら null。",
+    "basis_houses": 3,
+    "area_per_house": 2
+  },
+
+  "n_limit_per_a": 4.0,
+
+  "count_rule": {
+    "exclude_classes": ["展着剤"],
+    "exclude_if_unlimited": true,
+    "count_limit_total": 36
+  },
+
+  "skip_items": ["水のみ"],
+
+  "names_to_ja": {
+    "_説明": "入力側の呼び名 → 様式のリストでの正式名。全角半角・大文字小文字の違いだけなら書かなくてよい。",
+    "トミーブラック": "トミー液肥ブラック"
+  },
+
+  "ja_form": {
+    "fertilizer_list": {"sheet": "④肥料リスト", "name_col": 4},
+    "pesticide_list":  {"sheet": "⑤農薬リスト", "name_col": 4},
+    "fertilizer": {
+      "sheet": "②施肥",
+      "name_col": 3,
+      "plot_cols": {"第1": 7, "第2": 8, "第3": 9, "第4": 10, "第5": 11},
+      "month_blocks": {"6": [76, 103], "7": [104, 131], "8": [132, 159], "9": [160, 187]},
+      "formula_template_row": 77,
+      "formula_cols": [5, 6]
+    },
+    "pesticide": {
+      "sheet": "③防除",
+      "start_row": 45,
+      "month_col": 3, "day_col": 4, "name_col": 5,
+      "qty_col": 7, "unit_col": 8, "water_col": 9,
+      "plot_cols": {"第1": 11, "第2": 12, "第3": 13, "第4": 14, "第5": 15}
+    }
+  }
+}

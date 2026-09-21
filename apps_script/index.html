@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+<style>
+  :root {
+    --bg: #EEF2EC; --paper: #FFFFFF; --ink: #1B2E22; --sub: #5A6B5F; --line: #C9D3CB;
+    --fert: #8A5A2B; --pest: #33548C; --work: #3C7A3A;
+    --warn: #8F5300; --warnbg: #FFF0D6; --ok: #2F6B2D;
+    --c: var(--fert);
+  }
+  body[data-cat="防除"] { --c: var(--pest); }
+  body[data-cat="作業"] { --c: var(--work); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 17px; line-height: 1.5; }
+  body { padding-bottom: 96px; border-top: 6px solid var(--c); transition: border-color .2s; }
+  main { max-width: 560px; margin: 0 auto; padding: 12px 14px; }
+  h1 { font-size: 15px; font-weight: 700; color: var(--sub); margin: 4px 0 10px; letter-spacing: .05em; }
+
+  .cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+  .cats button { height: 64px; font: inherit; font-size: 21px; font-weight: 700; border-radius: 10px;
+    border: 2px solid var(--line); background: var(--paper); color: var(--sub); }
+  .cats button[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: #fff; }
+
+  .field { background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 10px; }
+  .field > label, .field > .lbl { display: block; font-size: 14px; color: var(--sub); margin-bottom: 6px; }
+  input, select { font: inherit; font-size: 19px; width: 100%; min-height: 48px; padding: 6px 10px;
+    border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--c); outline-offset: 2px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips button { font: inherit; font-size: 17px; min-height: 44px; padding: 6px 14px; border-radius: 22px;
+    border: 1.5px solid var(--line); background: #fff; color: var(--ink); }
+  .chips button[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: #fff; }
+  .chips .all { border-style: dashed; color: var(--sub); }
+
+  .item { display: grid; grid-template-columns: 1fr 104px auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .item .u { font-size: 15px; color: var(--sub); min-width: 26px; }
+  .item.noqty { grid-template-columns: 1fr; }
+  .ratio { font-size: 15px; margin: -2px 0 8px; min-height: 1.2em; }
+  .ratio.ng { color: var(--warn); background: var(--warnbg); padding: 4px 8px; border-radius: 6px; font-weight: 700; }
+  .ratio.good { color: var(--ok); }
+  .add { font: inherit; font-size: 15px; background: none; border: none; color: var(--c); padding: 6px 0; min-height: 40px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .save { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, var(--bg) 30%); }
+  .save button { display: block; width: 100%; max-width: 560px; margin: 0 auto; height: 58px; border: none;
+    border-radius: 12px; background: var(--c); color: #fff; font: inherit; font-size: 20px; font-weight: 700; }
+  .save button:disabled { opacity: .5; }
+
+  h2 { font-size: 15px; color: var(--sub); margin: 22px 0 6px; font-weight: 700; }
+  .recent { list-style: none; margin: 0; padding: 0; }
+  .recent li { display: flex; gap: 8px; align-items: baseline; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .recent .d { color: var(--sub); min-width: 38px; }
+  .recent .t { flex: 1; }
+  .recent .t small { display: block; color: var(--sub); }
+  .recent button { font: inherit; font-size: 14px; background: none; border: 1px solid var(--line);
+    border-radius: 6px; color: var(--sub); padding: 4px 10px; min-height: 36px; }
+
+  .toast { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); background: var(--ink); color: #fff;
+    padding: 10px 18px; border-radius: 8px; font-size: 16px; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .toast.show { opacity: 1; }
+  .toast.err { background: var(--warn); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body data-cat="施肥">
+<main>
+  <h1>はやれき</h1>
+
+  <div class="cats" role="group" aria-label="分類">
+    <button type="button" data-cat="施肥" aria-pressed="true">施肥</button>
+    <button type="button" data-cat="防除" aria-pressed="false">防除</button>
+    <button type="button" data-cat="作業" aria-pressed="false">作業</button>
+  </div>
+
+  <div class="field">
+    <label for="date">日付</label>
+    <input type="date" id="date">
+  </div>
+
+  <div class="field">
+    <span class="lbl" id="plots-lbl">区画（複数選べます）</span>
+    <div class="chips" id="plots" role="group" aria-labelledby="plots-lbl"></div>
+  </div>
+
+  <div class="field">
+    <span class="lbl" id="items-lbl">資材</span>
+    <div id="items"></div>
+    <button type="button" class="add" id="add-item" hidden>＋ 薬剤を足す（タンク混用）</button>
+  </div>
+
+  <div class="field" id="water-f" hidden>
+    <label for="water">水量（L）<span style="font-size:13px">　タンク全体</span></label>
+    <input type="number" id="water" inputmode="decimal" min="0" step="any">
+  </div>
+
+  <div class="field" id="truss-f" hidden>
+    <div class="row2">
+      <div><label for="flower">開花段</label><input type="number" id="flower" inputmode="numeric" min="0"></div>
+      <div><label for="harvest">収穫段</label><input type="number" id="harvest" inputmode="numeric" min="0"></div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="note">メモ</label>
+    <input type="text" id="note" autocomplete="off">
+  </div>
+
+  <h2>最近の記録</h2>
+  <ul class="recent" id="recent"><li>読み込み中</li></ul>
+</main>
+
+<div class="save"><button type="button" id="save" disabled>保存する</button></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { cat: '施肥', plots: new Set(), M: null };
+
+function toast(msg, err) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.toggle('err', !!err); t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function today() {
+  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
+function options(list, key) {
+  return '<option value="">選ぶ</option>' + list.map(r => `<option>${r[key]}</option>`).join('');
+}
+
+function itemRow() {
+  const M = state.M, c = state.cat;
+  const div = document.createElement('div');
+  if (c === '作業') {
+    div.className = 'item noqty';
+    div.innerHTML = `<select aria-label="作業">${options(M.works, '作業名')}</select>`;
+  } else {
+    const list = c === '施肥' ? M.ferts : M.pests;
+    const k = c === '施肥' ? '資材名' : '薬剤名';
+    div.className = 'item';
+    div.innerHTML = `<select aria-label="${c === '施肥' ? '資材' : '薬剤'}">${options(list, k)}</select>
+      <input type="number" inputmode="decimal" min="0" step="any" aria-label="使用量" placeholder="量">
+      <span class="u">${c === '施肥' ? 'kg' : ''}</span>`;
+  }
+  const wrap = document.createElement('div');
+  wrap.appendChild(div);
+  if (c === '防除') {
+    const r = document.createElement('div'); r.className = 'ratio'; wrap.appendChild(r);
+    div.querySelector('select').addEventListener('change', e => {
+      const p = M.pests.find(x => x['薬剤名'] === e.target.value);
+      div.querySelector('.u').textContent = p ? (p['単位'] || 'ml') : '';
+      checkRatio();
+    });
+    div.querySelector('input').addEventListener('input', checkRatio);
+  }
+  return wrap;
+}
+
+function renderItems() {
+  const c = state.cat, box = $('#items');
+  box.innerHTML = '';
+  box.appendChild(itemRow());
+  $('#items-lbl').textContent = c === '施肥' ? '資材' : c === '防除' ? '薬剤と使用量（タンク全体）' : '作業';
+  $('#add-item').hidden = c !== '防除';
+  $('#water-f').hidden = c !== '防除';
+  $('#truss-f').hidden = c !== '作業';
+}
+
+function checkRatio() {
+  const water = parseFloat($('#water').value);
+  document.querySelectorAll('#items > div').forEach(w => {
+    const sel = w.querySelector('select'), q = parseFloat(w.querySelector('input')?.value);
+    const out = w.querySelector('.ratio'); if (!out) return;
+    const p = state.M.pests.find(x => x['薬剤名'] === sel.value);
+    out.className = 'ratio'; out.textContent = '';
+    if (!p || !(q > 0) || !(water > 0) || p['計算方法'] === '直') return;
+    const r = water * 1000 / q, lo = Number(p['最小倍率']) || 0, hi = Number(p['最大倍率']) || 0;
+    const edge = (lo && r < lo && Math.round(r) >= lo) || (hi && r > hi && Math.round(r) <= hi);
+    const rt = edge ? r.toFixed(1) : Math.round(r).toLocaleString();
+    if (lo && r < lo) { out.className = 'ratio ng'; out.textContent = `${rt}倍　濃すぎます（${lo.toLocaleString()}倍以上）`; }
+    else if (hi && r > hi) { out.className = 'ratio ng'; out.textContent = `${rt}倍　薄すぎます（${hi.toLocaleString()}倍以下）`; }
+    else { out.className = 'ratio good'; out.textContent = `${rt}倍`; }
+  });
+}
+
+function renderPlots() {
+  const box = $('#plots'), names = state.M.plots.map(p => p['区画名']);
+  box.innerHTML = names.map(n => `<button type="button" aria-pressed="${state.plots.has(n)}">${n}</button>`).join('')
+    + `<button type="button" class="all">すべて</button>`;
+  box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    if (b.classList.contains('all')) {
+      const all = names.every(n => state.plots.has(n));
+      names.forEach(n => all ? state.plots.delete(n) : state.plots.add(n));
+    } else {
+      const n = b.textContent; state.plots.has(n) ? state.plots.delete(n) : state.plots.add(n);
+    }
+    renderPlots();
+  }));
+}
+
+function renderRecent(list) {
+  const ul = $('#recent');
+  if (!list.length) { ul.innerHTML = '<li>まだ記録がありません。上から入れて保存してください。</li>'; return; }
+  ul.innerHTML = list.map(r => `<li><span class="d">${r.date}</span>
+    <span class="t">${r.cat}　${r.items}<small>${r.plots}</small></span>
+    <button type="button" data-ev="${r.ev}">取り消す</button></li>`).join('');
+  ul.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    if (!confirm('この記録を取り消しますか')) return;
+    google.script.run.withSuccessHandler(l => { renderRecent(l); toast('取り消しました'); })
+      .withFailureHandler(e => toast(e.message, true)).deleteEvent(b.dataset.ev);
+  }));
+}
+
+function setCat(c) {
+  state.cat = c; document.body.dataset.cat = c;
+  document.querySelectorAll('.cats button').forEach(b => b.setAttribute('aria-pressed', b.dataset.cat === c));
+  renderItems();
+}
+
+function collect() {
+  const items = [];
+  document.querySelectorAll('#items .item').forEach(d => {
+    const name = d.querySelector('select').value;
+    if (!name) return;
+    const qty = d.querySelector('input') ? d.querySelector('input').value : '';
+    const unit = state.cat === '施肥' ? 'kg' : (d.querySelector('.u')?.textContent || '');
+    items.push({ name, qty, unit });
+  });
+  return {
+    date: $('#date').value, category: state.cat, plots: [...state.plots], items,
+    water: state.cat === '防除' ? $('#water').value : '',
+    flower: state.cat === '作業' ? $('#flower').value : '',
+    harvest: state.cat === '作業' ? $('#harvest').value : '',
+    note: $('#note').value.trim(),
+  };
+}
+
+function save() {
+  const p = collect();
+  if (!p.plots.length) return toast('区画を選んでください', true);
+  if (!p.items.length) return toast(state.cat === '作業' ? '作業を選んでください' : '資材を選んでください', true);
+  if (state.cat !== '作業' && p.items.some(i => !(parseFloat(i.qty) > 0))) return toast('量を入れてください', true);
+  if (state.cat === '防除' && !(parseFloat(p.water) > 0)) return toast('水量を入れてください', true);
+  const btn = $('#save'); btn.disabled = true; btn.textContent = '保存しています';
+  google.script.run.withSuccessHandler(res => {
+    btn.disabled = false; btn.textContent = '保存する';
+    toast(`保存しました（${res.saved}行）`);
+    renderItems(); $('#water').value = ''; $('#note').value = ''; $('#flower').value = ''; $('#harvest').value = '';
+    renderRecent(res.recent);
+  }).withFailureHandler(e => {
+    btn.disabled = false; btn.textContent = '保存する'; toast(e.message, true);
+  }).saveRecord(p);
+}
+
+document.querySelectorAll('.cats button').forEach(b => b.addEventListener('click', () => setCat(b.dataset.cat)));
+$('#add-item').addEventListener('click', () => {
+  if ($('#items').children.length >= 3) return toast('混用は3剤までです', true);
+  $('#items').appendChild(itemRow());
+});
+$('#water').addEventListener('input', checkRatio);
+$('#save').addEventListener('click', save);
+$('#date').value = today();
+
+google.script.run.withSuccessHandler(M => {
+  state.M = M; renderPlots(); renderItems(); renderRecent(M.recent); $('#save').disabled = false;
+}).withFailureHandler(e => toast('読み込めませんでした: ' + e.message, true)).getMasters();
+</script>
+</body>
+</html>
