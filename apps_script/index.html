@@ -43,6 +43,8 @@
   .item .u { font-size: 15px; color: var(--sub); min-width: 26px; }
   .item select.unit { width: 64px; padding: 6px 4px; font-size: 17px; color: var(--ink); }
   .item.noqty { grid-template-columns: 1fr; }
+  .dil { display: flex; align-items: center; gap: 6px; margin: -2px 0 4px; font-size: 15px; color: var(--sub); }
+  .dil input { width: 104px; min-height: 40px; font-size: 17px; }
   .ratio { font-size: 15px; margin: -2px 0 8px; min-height: 1.2em; }
   .ratio.ng { color: var(--warn); background: var(--warnbg); padding: 4px 8px; border-radius: 6px; font-weight: 700; }
   .ratio.good { color: var(--ok); }
@@ -173,13 +175,23 @@ function itemRow() {
     });
   }
   if (c === '防除') {
+    const dil = document.createElement('div'); dil.className = 'dil'; dil.hidden = true;
+    dil.innerHTML = '<span>倍率</span><input type="number" inputmode="numeric" min="1" step="any" aria-label="倍率"><span>倍で量を計算</span>';
+    wrap.appendChild(dil);
     const r = document.createElement('div'); r.className = 'ratio'; wrap.appendChild(r);
+    const q = div.querySelector('input'), bai = dil.querySelector('input');
     div.querySelector('select').addEventListener('change', e => {
       const p = M.pests.find(x => x['薬剤名'] === e.target.value);
       div.querySelector('.u').textContent = p ? (p['単位'] || 'ml') : '';
-      checkRatio();
+      const dilute = p && p['計算方法'] !== '直';
+      dil.hidden = !dilute;
+      bai.value = dilute && Number(p['最小倍率']) ? Number(p['最小倍率']) : '';
+      delete q.dataset.manual;
+      if (!dilute) q.value = '';
+      autoQty();
     });
-    div.querySelector('input').addEventListener('input', checkRatio);
+    bai.addEventListener('input', () => { delete q.dataset.manual; autoQty(); });
+    q.addEventListener('input', () => { q.dataset.manual = '1'; checkRatio(); });
   }
   return wrap;
 }
@@ -195,10 +207,27 @@ function renderItems() {
   $('#irr-f').hidden = c !== '施肥';
 }
 
+/** 水量と倍率から薬剤量を入れる（量を手で直した行はそのまま） */
+function autoQty() {
+  const water = parseFloat($('#water').value);
+  document.querySelectorAll('#items > div').forEach(w => {
+    const q = w.querySelector('.item input'), bai = w.querySelector('.dil input');
+    if (!q || !bai || w.querySelector('.dil').hidden || q.dataset.manual) return;
+    const b = parseFloat(bai.value);
+    if (water > 0 && b > 0) {
+      const v = water * 1000 / b;
+      q.value = v >= 10 ? Math.floor(v) : Math.floor(v * 10) / 10;  // 切り捨て＝基準より濃くしない
+    } else {
+      q.value = '';
+    }
+  });
+  checkRatio();
+}
+
 function checkRatio() {
   const water = parseFloat($('#water').value);
   document.querySelectorAll('#items > div').forEach(w => {
-    const sel = w.querySelector('select'), q = parseFloat(w.querySelector('input')?.value);
+    const sel = w.querySelector('select'), q = parseFloat(w.querySelector('.item input')?.value);
     const out = w.querySelector('.ratio'); if (!out) return;
     const p = state.M.pests.find(x => x['薬剤名'] === sel.value);
     out.className = 'ratio'; out.textContent = '';
@@ -290,7 +319,7 @@ $('#add-item').addEventListener('click', () => {
   if ($('#items').children.length >= 3) return toast('混用は3剤までです', true);
   $('#items').appendChild(itemRow());
 });
-$('#water').addEventListener('input', checkRatio);
+$('#water').addEventListener('input', autoQty);
 $('#save').addEventListener('click', save);
 $('#date').value = today();
 
